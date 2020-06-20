@@ -2,41 +2,27 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './components/App/App';
 import registerServiceWorker from './registerServiceWorker';
-import { createStore, combineReducers } from 'redux';
+import { createStore, combineReducers, applyMiddleware, compose } from 'redux';
+import __REDUX_DEVTOOLS_EXTENSION__ from 'redux-devtools-extension';
 import { Provider } from 'react-redux';
+import logger from 'redux-logger';
+import createSagaMiddleware from 'redux-saga';
+import { takeEvery } from 'redux-saga/effects';
 
-const firstReducer = (state = 0, action) => {
-    if (action.type === 'BUTTON_ONE') {
-        console.log('firstReducer state', state);
-        console.log('Button 1 was clicked!');
-        return state + 1;
-    }
-    return state;
-};
+import elementListReducer from './reducers/ElementListReducer';
+import firstReducer from './reducers/FirstReducer';
+import secondReducer from './reducers/SecondReducer';
+import postElement from './sagas/PostElement';
+import fetchElements from './sagas/FetchElement';
 
-const secondReducer = (state = 100, action) => {
-    if (action.type === 'BUTTON_TWO') {
-        console.log('secondReducer state', state);
-        console.log('Button 2 was clicked!');
-        return state - 1;
-    }
-    return state;
-};
+function* rootSaga()
+{
+    yield takeEvery('FETCH_ELEMENTS', fetchElements);
+    yield takeEvery('ADD_ELEMENT', postElement);
+}
 
-const elementListReducer = (state = [], action) => {
-    // if (action.type === 'ADD_ELEMENT') {
-    //     console.log(`The element was ${action.payload}`);
-    // }
-    switch (action.type) {
-        case 'ADD_ELEMENT':
-            return [ ...state, action.payload ];
-        default:
-            return state;
-    }
-};
+const sagaMiddleware = createSagaMiddleware();
 
-// This is creating the store
-// the store is the big JavaScript Object that holds all of the information for our application
 const storeInstance = createStore(
     // This function is our first reducer
     // reducer is a function that runs every time an action is dispatched
@@ -44,8 +30,18 @@ const storeInstance = createStore(
         firstReducer,
         secondReducer,
         elementListReducer,
-    })
+    }),
+    compose(
+        applyMiddleware(sagaMiddleware),
+        applyMiddleware(logger),
+        typeof window.__REDUX_DEVTOOLS_EXTENSION__ === "undefined"
+            ? a => a
+            : window.__REDUX_DEVTOOLS_EXTENSION__ && __REDUX_DEVTOOLS_EXTENSION__()
+
+    )
 );
+
+sagaMiddleware.run(rootSaga);
 
 ReactDOM.render(<Provider store={storeInstance}><App /></Provider>, document.getElementById('root'));
 registerServiceWorker();
